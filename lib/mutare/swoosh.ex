@@ -14,7 +14,9 @@ defmodule Mutare.Swoosh do
 
       [mutators: [:builtins] ++ Mutare.Swoosh.all(mailer: MyApp.Mailer)]
 
-  Without the option the deliver family stays inert (see `Mutare.Swoosh.Deliver`).
+  Without the option the deliver family stays inert (see `Mutare.Swoosh.Deliver`). `mailer:`
+  takes one module or a list; every listed mailer records under the one `:swoosh_deliver` name
+  (list `Mutare.Swoosh.Deliver` twice with `as:` to report them separately).
   """
 
   @families [

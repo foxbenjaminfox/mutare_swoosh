@@ -99,9 +99,58 @@ defmodule Mutare.Swoosh.DeliverTest do
     assert_metamutant_compiles(source, [{Deliver, mailer: Mailer}])
   end
 
+  test "init/1 normalises the mailer(s) to resolved module keys ([] when unset)" do
+    key = &Mutare.Calls.module_key/1
+
+    assert Deliver.init(mailer: Mailer) == [key.(Mailer)]
+    assert Deliver.init(mailer: [Mailer, OtherMailer]) == [key.(Mailer), key.(OtherMailer)]
+    assert Deliver.init([]) == []
+    assert Deliver.init(mailer: nil) == []
+  end
+
   test "init/1 rejects malformed configuration at startup" do
-    assert_raise ArgumentError, fn -> Deliver.init(mailer: "MyApp.Mailer") end
-    assert_raise ArgumentError, fn -> Deliver.init(mailers: Mailer) end
+    assert_raise ArgumentError, ~r/:mailer must be a module or a list of modules/, fn ->
+      Deliver.init(mailer: "MyApp.Mailer")
+    end
+
+    # One bad member spoils the list; `nil` inside a list names no module.
+    assert_raise ArgumentError, ~r/:mailer must be a module or a list of modules/, fn ->
+      Deliver.init(mailer: [Mailer, "MyApp.Other"])
+    end
+
+    assert_raise ArgumentError, ~r/:mailer must be a module or a list of modules/, fn ->
+      Deliver.init(mailer: [Mailer, nil])
+    end
+
+    assert_raise ArgumentError, ~r/unknown Mutare.Swoosh.Deliver options: \[:mailers\]/, fn ->
+      Deliver.init(mailers: Mailer)
+    end
+
+    assert_raise ArgumentError, ~r/must be a keyword list/, fn -> Deliver.init(42) end
+  end
+
+  test "mutate/2 refuses a context without the init/1-parsed config" do
+    # Core always injects `:config`; a hand-built context that lacks it is a programming error and
+    # must not read as "no mailer configured".
+    node = Sourceror.parse_string!("Mutare.SwooshTest.Mailer.deliver(email)")
+
+    assert_raise ArgumentError, ~r/init\/1-parsed :config/, fn ->
+      Deliver.mutate(node, %{pipe_mode: :unpiped, opts: [mailer: Mailer]})
+    end
+  end
+
+  test "listed twice with mailer:/as:, each mailer reports under its own name" do
+    result =
+      Mutare.transform_string(
+        mail("{Mutare.SwooshTest.Mailer.deliver(email), OtherMailer.deliver(email)}"),
+        mutators: [
+          {Deliver, mailer: Mailer, as: :deliver_main},
+          {Deliver, mailer: OtherMailer, as: :deliver_other}
+        ]
+      )
+
+    assert result.mutants |> Enum.map(& &1.mutator) |> Enum.sort() ==
+             [:deliver_main, :deliver_other]
   end
 
   test "declares variants and tags each mutant with the replaced function" do

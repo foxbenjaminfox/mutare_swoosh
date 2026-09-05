@@ -39,8 +39,11 @@ mailer activates the delivery family:
 
 `:builtins` keeps Mutare's default families and *adds* the Swoosh ones.
 `mailer:` takes one module or a list; without it (`Mutare.Swoosh.all()`) the
-`:swoosh_deliver` family stays inert and everything else still runs. Each
-family records under its own report name and can be enabled on its own:
+`:swoosh_deliver` family stays inert and everything else still runs. Every
+listed mailer records under the one `swoosh_deliver` name — to report mailers
+separately, list the family twice with `as:`
+(`{Mutare.Swoosh.Deliver, mailer: MyApp.AdminMailer, as: :swoosh_deliver_admin}`).
+Each family records under its own report name and can be enabled on its own:
 
 ```elixir
 [mutators: [:builtins, Mutare.Swoosh.Recipient]]   # just the recipient mutations
