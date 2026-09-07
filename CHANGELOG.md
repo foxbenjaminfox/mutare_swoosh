@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-07
+
+### Fixed
+
+- **No compiler warning on Elixir 1.20.** The header family carried a
+  catch-all clause its type inference proves unreachable, which 1.20 reports
+  while compiling the dependency (and which failed the package's own
+  warnings-as-errors CI). The clause is gone; behaviour is unchanged.
+
 ## [0.1.0] - 2026-09-07
 
 Initial release.
@@ -50,5 +59,6 @@ Initial release.
 - `Mutare.Swoosh.all/0` for splicing all families into a `:mutators` list;
   `Mutare.Swoosh.all/1` to configure the deliver family's `mailer:` in place.
 
-[Unreleased]: https://github.com/foxbenjaminfox/mutare_swoosh/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/foxbenjaminfox/mutare_swoosh/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/foxbenjaminfox/mutare_swoosh/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/foxbenjaminfox/mutare_swoosh/releases/tag/v0.1.0
