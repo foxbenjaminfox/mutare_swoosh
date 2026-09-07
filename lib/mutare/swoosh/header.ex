@@ -65,7 +65,9 @@ defmodule Mutare.Swoosh.Header do
   end
 
   # A literal headers container loses one entry per mutant; an opaque value loses the whole
-  # `headers:` option. An empty literal container yields nothing (an equivalent mutant).
+  # `headers:` option. An empty literal container yields nothing (an equivalent mutant). Every
+  # entry is a `{key, value}` pair — both container readers (`SAST.keyword_container/1`,
+  # `SAST.map_container/1`) admit nothing else — so this is the only clause.
   defp headers_mutations(
          {_key, value} = entry,
          entries,
@@ -94,9 +96,6 @@ defmodule Mutare.Swoosh.Header do
         [mutation(rebuild.(:new, List.replace_at(args, arg_index, wrap.(mutated_entries))))]
     end
   end
-
-  defp headers_mutations(_entry, _entries, _entry_index, _wrap, _args, _arg_index, _rebuild),
-    do: []
 
   defp mutation(node) do
     Mutation.new(node,
