@@ -105,8 +105,7 @@ recipients.
 
 ## Development
 
-The plugin is developed against a sibling checkout of Mutare
-(`{:mutare, path: "../mutare"}`). The test suite runs against stand-in
+The test suite runs against stand-in
 `Swoosh.Email`/`Swoosh.Attachment` modules (`test/support/swoosh_stubs.ex`)
 that mirror the real API — kept faithful by hand, since a real `:swoosh` test
 dep would collide with them.

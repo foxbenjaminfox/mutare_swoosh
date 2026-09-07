@@ -28,13 +28,10 @@ defmodule Mutare.Swoosh.MixProject do
   defp elixirc_paths(_), do: ["lib"]
 
   defp description do
-    "Custom Mutare mutators for the Swoosh email surface — " <>
-      "recipients, sender, subject, bodies, headers, attachments, and delivery."
+    "Mutare mutators for Swoosh"
   end
 
-  # Hex package metadata. The `mutare` core is still a `path:` dependency, so an
-  # actual `mix hex.publish` stays blocked until Mutare itself ships to Hex — this
-  # section keeps the manifest ready for that day. Only runtime and doc artifacts
+  # Hex package metadata. Only runtime and doc artifacts
   # ship — never the test suite or fixtures.
   defp package do
     [
@@ -53,8 +50,7 @@ defmodule Mutare.Swoosh.MixProject do
     [
       # The host mutation-testing engine. `mutare_swoosh` implements `Mutare.Mutator`
       # and rides only its public extension points (`Mutare.Calls`, `Mutare.AST`).
-      # A path dep for local development until `mutare` is published; a consuming
-      # project depends on both as `:dev`/`:test` deps.
+      # A consuming project depends on both as `:dev`/`:test` deps.
       #
       # Swoosh itself is deliberately NOT a dependency, not even in :test: the
       # mutators match calls purely syntactically, and the test suite's stand-ins
@@ -62,7 +58,7 @@ defmodule Mutare.Swoosh.MixProject do
       # `Swoosh.Attachment` module names so bare-import resolution reflects on real
       # exports — a real :swoosh test dep would collide with them. Stub fidelity is
       # maintained against Swoosh's source by hand (see the stubs' comments).
-      {:mutare, path: "../mutare"},
+      {:mutare, "~> 0.1"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false}
