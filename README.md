@@ -12,9 +12,9 @@ Email code has a signature test gap: the suite asserts *an* email was sent,
 and nothing more. The wrong recipient class (`cc` where `bcc` protects
 privacy), a reply-to that quietly falls back to `from`, a dropped attachment,
 a provider template id nobody checks — or a `deliver` that never happens — all
-pass such a test. `mutare_swoosh` mints *well-formed-but-wrong* Swoosh
-programs at exactly those spots, so a **surviving** mutant points at the
-precise assertion your suite is missing.
+pass such a test. `mutare_swoosh` generates *well-formed-but-wrong* Swoosh
+programs at those points. A **surviving** mutant indicates a change that
+your test assertions did not detect.
 
 ## Install
 
@@ -44,11 +44,11 @@ mailer activates the delivery family:
 
 `:builtins` keeps Mutare's default families and *adds* the Swoosh ones.
 `mailer:` takes one module or a list; without it (`Mutare.Swoosh.all()`) the
-`:swoosh_deliver` family stays inert and everything else still runs. Every
-listed mailer records under the one `swoosh_deliver` name — to report mailers
-separately, list the family twice with `as:`
+`:swoosh_deliver` family produces no mutations and everything else still runs.
+Mutants for all listed mailers are reported under `swoosh_deliver` — to report
+mailers separately, list the family twice with `as:`
 (`{Mutare.Swoosh.Deliver, mailer: MyApp.AdminMailer, as: :swoosh_deliver_admin}`).
-Each family records under its own report name and can be enabled on its own:
+Each family has its own report name and can be enabled on its own:
 
 ```elixir
 [mutators: [:builtins, Mutare.Swoosh.Recipient]]   # just the recipient mutations
@@ -62,16 +62,16 @@ mix mutare
 
 ## The families
 
-| Family | Name | Mutation | The gap a survivor exposes |
+| Family | Name | Mutation | Test gap indicated by a survivor |
 | --- | --- | --- | --- |
 | `Mutare.Swoosh.Deliver` | `:swoosh_deliver` | replaces `Mailer.deliver/1,2` with a non-delivering `{:ok, %{}}` (`deliver!/1,2` → `%{}`) on the configured mailer(s) | **no test asserts the email was actually sent** — `assert_email_sent` |
-| `Mutare.Swoosh.Recipient` | `:swoosh_recipient` | swaps recipient classes (`to`/`cc`/`bcc`; `put_to`/`put_cc`/`put_bcc`), deletes one recipient from literal values, and weakens `put_*` → plain (replace became append) | no test pins who the email goes to — the `cc`↔`bcc` swap is the privacy question |
+| `Mutare.Swoosh.Recipient` | `:swoosh_recipient` | swaps recipient classes (`to`/`cc`/`bcc`; `put_to`/`put_cc`/`put_bcc`), deletes one recipient from literal values, and weakens `put_*` → plain (replace became append) | no test checks the recipients or their class — the `cc`↔`bcc` swap affects recipient privacy |
 | `Mutare.Swoosh.Sender` | `:swoosh_sender` | swaps `from` ↔ `reply_to`; drops `reply_to` | replies silently go to `from`; no test asserts the reply-to address |
 | `Mutare.Swoosh.Subject` | `:swoosh_subject` | blanks the subject to `""` | no test reads the subject |
 | `Mutare.Swoosh.Body` | `:swoosh_body` | swaps `html_body` ↔ `text_body` | no test distinguishes which body part carries the content |
 | `Mutare.Swoosh.Header` | `:swoosh_header` | removes `header/3`; drops entries from a `headers:` option | no test asserts the custom header |
 | `Mutare.Swoosh.Attachment` | `:swoosh_attachment` | swaps disposition (`type: :inline` ↔ `:attachment`); removes the attachment entirely | no test asserts the attachment exists, or how it displays |
-| `Mutare.Swoosh.ProviderOption` | `:swoosh_provider_option` | removes `put_provider_option/3` | no test asserts the provider option — template ids and dynamic template data live here |
+| `Mutare.Swoosh.ProviderOption` | `:swoosh_provider_option` | removes `put_provider_option/3` | no test asserts the provider option — such as template ids or dynamic template data |
 
 Every email-field family mutates both the pipeline call
 (`email |> subject("Welcome")`) and the matching `Swoosh.Email.new/1` option
@@ -83,7 +83,7 @@ program — a survivor means a missing assertion, not a crash.
 
 The families declare ignore-variant labels, so a
 `# mutare:ignore[family:label]` directive can suppress one kind of mutant
-without silencing the whole family:
+without disabling the whole family:
 
 ```elixir
 email |> bcc(auditors)              # mutare:ignore[swoosh_recipient:cc] audit copy may be visible
@@ -93,18 +93,17 @@ email |> attachment(invoice_pdf)    # mutare:ignore[swoosh_attachment:delete]
 ```
 
 The `put_* → plain` weakening (`append`) is deliberately **one-directional**:
-writing `put_to` declares you care about replacement semantics, so that intent
-should be tested; writing plain `to` declares no such intent, so there is no
-reverse mutant. It is also the one mutant that can be *legitimately
-equivalent* — when no recipients were set yet, replace and append coincide —
-so each carries a report note saying a kill may require pre-existing
-recipients.
+using `put_to` explicitly replaces existing recipients, so tests should check
+that replacement; plain `to` only appends recipients, so there is no reverse
+mutant. The two operations are *equivalent* when no recipients were set yet,
+so each such mutant includes a report note explaining that a kill may require
+pre-existing recipients.
 
 ## What's deliberately out of scope
 
 - **`from` removal** — Swoosh validates the sender at delivery, so the mutant
   would only crash: an uninformative kill, not a test-quality signal.
-- **Template rendering** — `render_body/3` and friends belong to
+- **Template rendering** — `render_body/3` and related functions are defined in
   [phoenix_swoosh](https://hexdocs.pm/phoenix_swoosh), and are covered by the
   companion `mutare_phoenix_swoosh` package.
 

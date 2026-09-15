@@ -4,9 +4,9 @@ defmodule Mutare.Swoosh.Header do
 
   A `Swoosh.Email.header(email, name, value)` call collapses to the email (piped stages become
   identity). In Swoosh.Email.new/1, a `headers:` option with a literal map (or keyword) value has
-  one entry dropped per mutant; an opaque value (a variable, a call) drops the whole `headers:`
-  option instead. An empty literal `headers:` value produces no mutations — removing nothing is a
-  no-op.
+  one entry dropped per mutant; for an opaque value (a variable, a call), the whole `headers:`
+  option is dropped instead. An empty literal `headers:` value produces no mutations — removing
+  nothing is a no-op.
 
   A survivor means no test asserts the header — precisely the tracking, list-management, and
   provider-routing headers that are set and never checked.

@@ -5,10 +5,10 @@ defmodule Mutare.Swoosh.Subject do
   A direct subject(email, value) call is changed to subject(email, ""). In Swoosh.Email.new/1,
   the :subject option is removed, falling back to Swoosh's default empty subject.
 
-  Where the core :string family also runs, the direct-call replacement takes Mutare's overlap
+  Where the core :string family also runs, Mutare's overlap rules give the direct-call replacement
   precedence: the string-literal mutants on that subject argument (empty and sentinel) are
   dropped, leaving this family's single note-carrying mutant. On the new/1 side the option
-  removal and the core empty-string mutant coexist (they are minted at different nodes) and are
+  removal and the core empty-string mutant coexist (they are generated at different nodes) and are
   behaviourally equivalent.
   """
 

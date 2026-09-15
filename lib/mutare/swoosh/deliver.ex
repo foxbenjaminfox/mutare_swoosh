@@ -5,8 +5,8 @@ defmodule Mutare.Swoosh.Deliver do
   A `deliver(email)` / `deliver(email, config)` call on a configured mailer is replaced by the
   literal `{:ok, %{}}`, and `deliver!/1,2` by `%{}` — the shapes a successful Swoosh delivery
   returns, with nothing sent. A piped stage becomes `Kernel.then(fn _ -> ... end)` so the pipe
-  stays legal and the email is still built. A survivor asks the pointed question: does any test
-  assert the email was actually sent (`Swoosh.TestAssertions.assert_email_sent/1`)?
+  stays legal and the email is still built. A survivor indicates that no test detected the
+  skipped delivery. Use `Swoosh.TestAssertions.assert_email_sent/1` to assert that an email was sent.
 
   The mailer module is application-specific, so this is a configurable mutator — without the
   `mailer:` option the family produces no mutations:
@@ -14,7 +14,7 @@ defmodule Mutare.Swoosh.Deliver do
       [mutators: [:builtins, {Mutare.Swoosh.Deliver, mailer: MyApp.Mailer}]]
 
   `mailer:` takes one module or a list (`mailer: [MyApp.Mailer, MyApp.AdminMailer]`); every listed
-  mailer's mutants record under the one `:swoosh_deliver` name. To report mailers separately, list
+  mailer's mutants are reported under `:swoosh_deliver`. To report mailers separately, list
   the family twice with different `mailer:`/`as:` — Mutare's multi-instance convention. Direct,
   aliased, and piped calls all match. `Mutare.Swoosh.all/1` configures the family while splicing
   the whole package in.

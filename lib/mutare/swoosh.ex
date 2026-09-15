@@ -2,21 +2,21 @@ defmodule Mutare.Swoosh do
   @moduledoc """
   Custom Mutare mutators for Swoosh email semantics.
 
-  The families mutate the semantic fields that tests often forget to assert: recipient class,
+  The families mutate email fields often left untested: recipient class,
   sender, body part, subject, attachments, custom headers, provider options — and delivery
   itself. Each email-field family also mutates matching Swoosh.Email.new/1 options, so both
   pipeline construction and compact new options are covered.
 
       [mutators: [:builtins] ++ Mutare.Swoosh.all()]
 
-  `Mutare.Swoosh.Deliver` needs to know the application's mailer module; `all/1` configures it
-  in place:
+  `Mutare.Swoosh.Deliver` requires the application's mailer module in its configuration;
+  set it with `all/1`:
 
       [mutators: [:builtins] ++ Mutare.Swoosh.all(mailer: MyApp.Mailer)]
 
-  Without the option the deliver family stays inert (see `Mutare.Swoosh.Deliver`). `mailer:`
-  takes one module or a list; every listed mailer records under the one `:swoosh_deliver` name
-  (list `Mutare.Swoosh.Deliver` twice with `as:` to report them separately).
+  Without the option the deliver family produces no mutations (see `Mutare.Swoosh.Deliver`).
+  `mailer:` takes one module or a list; mutants for all listed mailers are reported under
+  `:swoosh_deliver` (list `Mutare.Swoosh.Deliver` twice with `as:` to report them separately).
   """
 
   @families [
@@ -33,9 +33,9 @@ defmodule Mutare.Swoosh do
   @doc """
   This package's Swoosh mutator families, for splicing into :mutators.
 
-  `Mutare.Swoosh.Deliver` is included unconfigured and produces no mutations until it is given a
-  `mailer:` — use `all/1` (or list the `{Mutare.Swoosh.Deliver, mailer: ...}` tuple yourself) to
-  activate it.
+  `Mutare.Swoosh.Deliver` is included unconfigured and produces no mutations until its
+  `mailer:` option is set — use `all/1` (or list the `{Mutare.Swoosh.Deliver, mailer: ...}`
+  tuple yourself) to activate it.
   """
   @spec all() :: [module()]
   def all, do: @families

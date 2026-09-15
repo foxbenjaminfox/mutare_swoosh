@@ -4,21 +4,21 @@ defmodule Mutare.Swoosh.Recipient do
 
   The family swaps recipient classes to, cc, and bcc for both append-style calls and put-style
   calls. It also deletes one recipient from recipient values, and weakens each put-style call to
-  its append-style sibling (`put_to` becomes `to`, and likewise for cc and bcc). The class swaps
-  and deletions also apply inside Swoosh.Email.new/1 options.
+  the corresponding append-style call (`put_to` becomes `to`, and likewise for cc and bcc).
+  The class swaps and deletions also apply inside Swoosh.Email.new/1 options.
 
-  The put-to-append swap is deliberately one-directional: writing `put_to` declares interest in
-  replacement semantics, which a test should pin, while a plain `to` declares no such intent, so
-  no reverse swap is minted. The swap is equivalent when the recipient list is empty at that
-  point, and its report note says a kill may require pre-existing recipients.
+  The put-to-append swap is deliberately one-directional: `put_to` explicitly replaces existing
+  recipients, so tests should check that replacement; plain `to` only appends recipients, so no
+  reverse swap is generated. The swap is equivalent when the recipient list is empty at that
+  point. Its report note explains that a kill may require pre-existing recipients.
 
   A statically empty recipient list on an append-style call (`to([])`) produces no mutations:
   appending nothing is a no-op for every class, so both the class swaps and the deletion would be
-  equivalent mutants. Put-style calls keep their swaps (clearing a different class is
+  equivalent mutants. Swaps are still generated for put-style calls (clearing a different class is
   observable).
 
   Deleting a single-element literal list (`to(["a"])` becoming `to([])`) produces the same
-  program as the core `:list` family's collapse of that list; when both run, the mutant is minted
+  program as the core `:list` family's collapse of that list; when both run, the mutant is generated
   twice.
   """
 

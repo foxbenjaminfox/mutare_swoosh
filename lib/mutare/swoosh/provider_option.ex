@@ -3,8 +3,8 @@ defmodule Mutare.Swoosh.ProviderOption do
   :swoosh_provider_option removes provider-specific delivery options.
 
   A `Swoosh.Email.put_provider_option(email, key, value)` call collapses to the email (piped
-  stages become identity). Provider options carry exactly the delivery behaviour that is easy to
-  leave untested — template ids, dynamic template data, tracking settings — so a survivor means
+  stages become identity). Provider options configure delivery behaviour often left untested
+  — template ids, dynamic template data, tracking settings — so a survivor means
   no test asserts the option reaches the provider.
   """
 

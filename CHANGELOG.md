@@ -11,9 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **No compiler warning on Elixir 1.20.** The header family carried a
-  catch-all clause its type inference proves unreachable, which 1.20 reports
-  while compiling the dependency (and which failed the package's own
+- **No compiler warning on Elixir 1.20.** The header family contained a
+  catch-all clause that Elixir's type inference proves unreachable. Elixir 1.20
+  reports this while compiling the dependency (which failed the package's own
   warnings-as-errors CI). The clause is gone; behaviour is unchanged.
 
 ## [0.1.0] - 2026-09-07
@@ -27,9 +27,9 @@ Initial release.
   - `Mutare.Swoosh.Recipient` (`:swoosh_recipient`) — swaps recipient classes
     (`to`/`cc`/`bcc`, and `put_to`/`put_cc`/`put_bcc` among themselves),
     deletes one recipient from literal recipient values, and weakens
-    `put_* → ` plain (`append`) one-directionally — replace-semantics
-    declared but untested (each such mutant carries an equivalence note:
-    a kill may require pre-existing recipients).
+    `put_*` → plain (`append`) one-directionally — checking whether tests
+    detect a failure to replace recipients (each such mutant includes an
+    equivalence note: a kill may require pre-existing recipients).
   - `Mutare.Swoosh.Sender` (`:swoosh_sender`) — swaps `from` ↔ `reply_to`
     and drops `reply_to` (`delete` — replies silently go to `from`).
   - `Mutare.Swoosh.Subject` (`:swoosh_subject`) — blanks the subject
@@ -44,12 +44,12 @@ Initial release.
   - `Mutare.Swoosh.ProviderOption` (`:swoosh_provider_option`) — removes
     `put_provider_option/3` (provider template ids and dynamic template data
     are exactly the untested things).
-  - `Mutare.Swoosh.Deliver` (`:swoosh_deliver`) — the marquee mutation:
+  - `Mutare.Swoosh.Deliver` (`:swoosh_deliver`) — skips delivery:
     replaces `Mailer.deliver/1,2` with a non-delivering `{:ok, %{}}` (and
-    `deliver!/1,2` with `%{}`), asking "does any test assert the email was
-    actually **sent**?" Configurable with the application's mailer(s):
+    `deliver!/1,2` with `%{}`), checking whether tests assert that the email
+    was actually **sent**. Configurable with the application's mailer(s):
     `{Mutare.Swoosh.Deliver, mailer: MyApp.Mailer}`, or
-    `Mutare.Swoosh.all(mailer: MyApp.Mailer)`; inert without it.
+    `Mutare.Swoosh.all(mailer: MyApp.Mailer)`; produces no mutations without it.
 - Every email-field family mutates both the pipeline call and the matching
   `Swoosh.Email.new/1` option; calls match written qualified, aliased,
   imported, or piped.

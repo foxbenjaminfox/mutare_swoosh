@@ -7,8 +7,8 @@ defmodule Mutare.Swoosh.Sender do
   `reply_to(email, value)` call collapses to the email (piped stages become identity), and the
   `reply_to:` option in Swoosh.Email.new/1 is dropped — replies then silently go to `from`.
 
-  No `from` removal is minted: Swoosh validates the sender at delivery, so that mutant would
-  only crash, telling the suite nothing.
+  No `from` removal is generated: Swoosh validates the sender at delivery, so that mutant would
+  fail validation without testing assertions about the sender.
   """
 
   @behaviour Mutare.Mutator
