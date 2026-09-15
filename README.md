@@ -1,5 +1,10 @@
 # mutare_swoosh
 
+[![Hex.pm](https://img.shields.io/hexpm/v/mutare_swoosh.svg)](https://hex.pm/packages/mutare_swoosh)
+[![Hexdocs](https://img.shields.io/badge/hexdocs-docs-blue.svg)](https://hexdocs.pm/mutare_swoosh)
+[![CI](https://github.com/foxbenjaminfox/mutare_swoosh/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/foxbenjaminfox/mutare_swoosh/actions/workflows/ci.yml)
+[![License](https://img.shields.io/hexpm/l/mutare_swoosh.svg)](https://github.com/foxbenjaminfox/mutare_swoosh/blob/master/LICENSE)
+
 Mutation-testing mutators for [Swoosh](https://hexdocs.pm/swoosh), built as a
 plugin for [Mutare](https://hexdocs.pm/mutare).
 
