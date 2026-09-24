@@ -25,14 +25,14 @@ defmodule Mutare.Swoosh.Subject do
   def variants, do: ~w(delete)
 
   @impl Mutare.Mutator
-  def mutate(node, %{pipe_mode: pipe_mode}) do
-    (call_mutations(node, pipe_mode) ++ new_option_mutations(node, pipe_mode)) |> present()
+  def mutate(node) do
+    (call_mutations(node) ++ new_option_mutations(node)) |> present()
   end
 
-  defp call_mutations(node, pipe_mode) do
+  defp call_mutations(node) do
     case Calls.resolved_call_to(node, Swoosh.Email, :subject) do
       {:ok, :subject, args, rebuild} ->
-        with {index, value} <- SAST.value_arg(args, pipe_mode),
+        with {index, value} <- SAST.value_arg(args),
              false <- empty_subject?(value) do
           [mutation(rebuild.(:subject, List.replace_at(args, index, SAST.empty_string())))]
         else
@@ -44,10 +44,10 @@ defmodule Mutare.Swoosh.Subject do
     end
   end
 
-  defp new_option_mutations(node, pipe_mode) do
+  defp new_option_mutations(node) do
     case Calls.resolved_call_to(node, Swoosh.Email, :new) do
       {:ok, :new, args, rebuild} ->
-        case SAST.new_opts_arg(args, pipe_mode) do
+        case SAST.new_opts_arg(args) do
           {arg_index, {_kind, entries, wrap}} ->
             entries
             |> Enum.with_index()

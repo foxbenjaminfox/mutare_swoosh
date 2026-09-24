@@ -2,8 +2,8 @@ defmodule Mutare.Swoosh.Header do
   @moduledoc """
   :swoosh_header removes custom email headers.
 
-  A `Swoosh.Email.header(email, name, value)` call collapses to the email (piped stages become
-  identity). In Swoosh.Email.new/1, a `headers:` option with a literal map (or keyword) value has
+  A `Swoosh.Email.header(email, name, value)` call collapses to the email (a piped stage to
+  what was piped into it). In Swoosh.Email.new/1, a `headers:` option with a literal map (or keyword) value has
   one entry dropped per mutant; for an opaque value (a variable, a call), the whole `headers:`
   option is dropped instead. An empty literal `headers:` value produces no mutations — removing
   nothing is a no-op.
@@ -15,7 +15,6 @@ defmodule Mutare.Swoosh.Header do
   @behaviour Mutare.Mutator
 
   alias Mutare.Calls
-  alias Mutare.Mutator
   alias Mutare.Mutator.Mutation
   alias Mutare.Swoosh.AST, as: SAST
 
@@ -26,24 +25,24 @@ defmodule Mutare.Swoosh.Header do
   def variants, do: ~w(delete)
 
   @impl Mutare.Mutator
-  def mutate(node, %{pipe_mode: pipe_mode}) do
-    (call_mutations(node, pipe_mode) ++ new_option_mutations(node, pipe_mode)) |> present()
+  def mutate(node) do
+    (call_mutations(node) ++ new_option_mutations(node)) |> present()
   end
 
-  defp call_mutations(node, pipe_mode) do
+  defp call_mutations(node) do
     with {:ok, :header, args, _rebuild} <- Calls.resolved_call_to(node, Swoosh.Email, :header),
-         3 <- Mutator.effective_arity(args, pipe_mode),
-         collapsed when not is_nil(collapsed) <- SAST.collapse_to_email(args, pipe_mode) do
+         3 <- length(args),
+         collapsed when not is_nil(collapsed) <- SAST.collapse_to_email(args) do
       [mutation(collapsed)]
     else
       _ -> []
     end
   end
 
-  defp new_option_mutations(node, pipe_mode) do
+  defp new_option_mutations(node) do
     case Calls.resolved_call_to(node, Swoosh.Email, :new) do
       {:ok, :new, args, rebuild} ->
-        case SAST.new_opts_arg(args, pipe_mode) do
+        case SAST.new_opts_arg(args) do
           {arg_index, {_kind, entries, wrap}} ->
             entries
             |> Enum.with_index()

@@ -35,7 +35,7 @@ defmodule Mutare.Swoosh.DeliverTest do
     assert mutateds(source) == ["{:ok, %{}}"]
   end
 
-  test "replaces a piped deliver stage while keeping the email evaluated" do
+  test "replaces a piped deliver stage over the whole pipe" do
     source = """
     defmodule Notifier do
       alias Mutare.SwooshTest.Mailer
@@ -47,14 +47,14 @@ defmodule Mutare.Swoosh.DeliverTest do
     end
     """
 
-    assert mutateds(source) == ["Elixir.Kernel.then(fn _ -> {:ok, %{}} end)"]
+    assert mutateds(source) == ["{:ok, %{}}"]
   end
 
   test "replaces deliver! with %{}" do
     assert mutateds(mail("Mutare.SwooshTest.Mailer.deliver!(email)")) == ["%{}"]
   end
 
-  test "replaces a piped deliver! stage with a %{} constant stage" do
+  test "replaces a piped deliver! stage with %{}" do
     source = """
     defmodule Notifier do
       alias Mutare.SwooshTest.Mailer
@@ -63,7 +63,7 @@ defmodule Mutare.Swoosh.DeliverTest do
     end
     """
 
-    assert mutateds(source) == ["Elixir.Kernel.then(fn _ -> %{} end)"]
+    assert mutateds(source) == ["%{}"]
   end
 
   test "accepts a list of mailers" do
@@ -135,7 +135,7 @@ defmodule Mutare.Swoosh.DeliverTest do
     node = Sourceror.parse_string!("Mutare.SwooshTest.Mailer.deliver(email)")
 
     assert_raise ArgumentError, ~r/init\/1-parsed :config/, fn ->
-      Deliver.mutate(node, %{pipe_mode: :unpiped, opts: [mailer: Mailer]})
+      Deliver.mutate(node, %{opts: [mailer: Mailer]})
     end
   end
 

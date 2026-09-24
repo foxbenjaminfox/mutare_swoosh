@@ -5,8 +5,8 @@ defmodule Mutare.Swoosh.Attachment do
   Two kinds of mutation, separately ignorable by variant label:
 
     * whole-attachment removal (`delete`) — a `Swoosh.Email.attachment(email, ...)` call
-      collapses to the email (piped stages become identity), and the singular `attachment:`
-      option in Swoosh.Email.new/1 is dropped. A survivor means no test asserts the attachment
+      collapses to the email (a piped stage to what was piped into it), and the singular
+      `attachment:` option in Swoosh.Email.new/1 is dropped. A survivor means no test asserts the attachment
       exists. (Swoosh.Email.new/1 has no `attachments:` option, so none is matched.)
     * disposition swap (`inline` / `attachment`) — Swoosh exposes disposition on
       Swoosh.Attachment.new/2 through the :type option; type: :inline and type: :attachment are
@@ -26,21 +26,21 @@ defmodule Mutare.Swoosh.Attachment do
   def variants, do: ~w(inline attachment delete)
 
   @impl Mutare.Mutator
-  def mutate(node, %{pipe_mode: pipe_mode}) do
-    (disposition_mutations(node, pipe_mode) ++
-       delete_mutations(node, pipe_mode) ++ new_option_mutations(node, pipe_mode))
+  def mutate(node) do
+    (disposition_mutations(node) ++
+       delete_mutations(node) ++ new_option_mutations(node))
     |> present()
   end
 
-  defp disposition_mutations(node, pipe_mode) do
+  defp disposition_mutations(node) do
     case Calls.resolved_call_to(node, Swoosh.Attachment, :new) do
-      {:ok, :new, args, rebuild} -> type_swaps(args, pipe_mode, rebuild)
+      {:ok, :new, args, rebuild} -> type_swaps(args, rebuild)
       :error -> []
     end
   end
 
-  defp type_swaps(args, pipe_mode, rebuild) do
-    with {opts_index, opts} <- SAST.effective_arg(args, pipe_mode, 2, 1),
+  defp type_swaps(args, rebuild) do
+    with {opts_index, opts} <- SAST.arg_at(args, 2, 1),
          {:ok, {_kind, entries, wrap}} <- SAST.opts_container(opts) do
       entries
       |> Enum.with_index()
@@ -68,21 +68,21 @@ defmodule Mutare.Swoosh.Attachment do
     end
   end
 
-  defp delete_mutations(node, pipe_mode) do
+  defp delete_mutations(node) do
     with {:ok, :attachment, args, _rebuild} <-
            Calls.resolved_call_to(node, Swoosh.Email, :attachment),
-         {_index, _value} <- SAST.value_arg(args, pipe_mode),
-         collapsed when not is_nil(collapsed) <- SAST.collapse_to_email(args, pipe_mode) do
+         {_index, _value} <- SAST.value_arg(args),
+         collapsed when not is_nil(collapsed) <- SAST.collapse_to_email(args) do
       [delete_mutation(collapsed)]
     else
       _ -> []
     end
   end
 
-  defp new_option_mutations(node, pipe_mode) do
+  defp new_option_mutations(node) do
     case Calls.resolved_call_to(node, Swoosh.Email, :new) do
       {:ok, :new, args, rebuild} ->
-        case SAST.new_opts_arg(args, pipe_mode) do
+        case SAST.new_opts_arg(args) do
           {arg_index, {_kind, entries, wrap}} ->
             entries
             |> Enum.with_index()

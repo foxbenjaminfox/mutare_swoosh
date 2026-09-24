@@ -24,7 +24,7 @@ defmodule Mutare.Swoosh.SenderTest do
     muts = mutateds(mail(~s'new() |> reply_to(["a@example.com", "b@example.com"])'))
 
     refute Enum.any?(muts, &(&1 =~ "from("))
-    assert muts == ["Elixir.Function.identity()"]
+    assert muts == ["new()"]
   end
 
   test "drops a direct reply_to call by collapsing to the email" do
@@ -32,9 +32,9 @@ defmodule Mutare.Swoosh.SenderTest do
     assert "email" in muts
   end
 
-  test "drops a piped reply_to stage via identity" do
+  test "drops a piped reply_to stage, leaving what was piped in" do
     muts = mutateds(mail(~s'new() |> reply_to("reply@example.com")'))
-    assert "Elixir.Function.identity()" in muts
+    assert "new()" in muts
   end
 
   test "does not drop from" do

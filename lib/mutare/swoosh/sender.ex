@@ -4,8 +4,9 @@ defmodule Mutare.Swoosh.Sender do
 
   A literal list reply_to value is not changed into from, because Swoosh.Email.from/2 accepts a
   single mailbox while reply_to/2 may accept a list. The removal has no such restriction: a
-  `reply_to(email, value)` call collapses to the email (piped stages become identity), and the
-  `reply_to:` option in Swoosh.Email.new/1 is dropped — replies then silently go to `from`.
+  `reply_to(email, value)` call collapses to the email (a piped stage to what was piped into
+  it), and the `reply_to:` option in Swoosh.Email.new/1 is dropped — replies then silently go
+  to `from`.
 
   No `from` removal is generated: Swoosh validates the sender at delivery, so that mutant would
   fail validation without testing assertions about the sender.
@@ -26,16 +27,16 @@ defmodule Mutare.Swoosh.Sender do
   def variants, do: ~w(from reply_to delete)
 
   @impl Mutare.Mutator
-  def mutate(node, %{pipe_mode: pipe_mode}) do
-    (call_mutations(node, pipe_mode) ++ new_option_mutations(node, pipe_mode)) |> present()
+  def mutate(node) do
+    (call_mutations(node) ++ new_option_mutations(node)) |> present()
   end
 
-  defp call_mutations(node, pipe_mode) do
+  defp call_mutations(node) do
     case Calls.resolved_call_to(node, Swoosh.Email, @fields) do
       {:ok, fun, args, rebuild} ->
-        case SAST.value_arg(args, pipe_mode) do
+        case SAST.value_arg(args) do
           {_index, value} ->
-            swap_mutations(fun, value, args, rebuild) ++ drop_mutations(fun, args, pipe_mode)
+            swap_mutations(fun, value, args, rebuild) ++ drop_mutations(fun, args)
 
           nil ->
             []
@@ -53,19 +54,19 @@ defmodule Mutare.Swoosh.Sender do
     end
   end
 
-  defp drop_mutations(:reply_to, args, pipe_mode) do
-    case SAST.collapse_to_email(args, pipe_mode) do
+  defp drop_mutations(:reply_to, args) do
+    case SAST.collapse_to_email(args) do
       nil -> []
       collapsed -> [drop_mutation(collapsed)]
     end
   end
 
-  defp drop_mutations(:from, _args, _pipe_mode), do: []
+  defp drop_mutations(:from, _args), do: []
 
-  defp new_option_mutations(node, pipe_mode) do
+  defp new_option_mutations(node) do
     case Calls.resolved_call_to(node, Swoosh.Email, :new) do
       {:ok, :new, args, rebuild} ->
-        case SAST.new_opts_arg(args, pipe_mode) do
+        case SAST.new_opts_arg(args) do
           {arg_index, {kind, entries, wrap}} ->
             entries
             |> Enum.with_index()

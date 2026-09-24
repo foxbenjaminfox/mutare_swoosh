@@ -2,17 +2,17 @@ defmodule Mutare.Swoosh.AST do
   @moduledoc false
 
   alias Mutare.AST
-  alias Mutare.Mutator
 
   @type container :: {:keyword | :map, [Macro.t()], ([Macro.t()] -> Macro.t())}
 
-  @spec value_arg([Macro.t()], Mutator.pipe_mode()) :: {non_neg_integer(), Macro.t()} | nil
-  def value_arg(args, pipe_mode), do: effective_arg(args, pipe_mode, 2, 1)
+  # A pipe stage is offered as the direct call it is sugar for (`email |> subject(s)` as
+  # `subject(email, s)`), so a field call's value is always argument 1 of an arity-2 call.
+  @spec value_arg([Macro.t()]) :: {non_neg_integer(), Macro.t()} | nil
+  def value_arg(args), do: arg_at(args, 2, 1)
 
-  @spec new_opts_arg([Macro.t()], Mutator.pipe_mode()) ::
-          {non_neg_integer(), container()} | nil
-  def new_opts_arg(args, pipe_mode) do
-    with {index, opts} <- effective_arg(args, pipe_mode, 1, 0),
+  @spec new_opts_arg([Macro.t()]) :: {non_neg_integer(), container()} | nil
+  def new_opts_arg(args) do
+    with {index, opts} <- arg_at(args, 1, 0),
          {:ok, container} <- opts_container(opts) do
       {index, container}
     else
@@ -20,11 +20,10 @@ defmodule Mutare.Swoosh.AST do
     end
   end
 
-  @spec effective_arg([Macro.t()], Mutator.pipe_mode(), non_neg_integer(), non_neg_integer()) ::
+  @spec arg_at([Macro.t()], non_neg_integer(), non_neg_integer()) ::
           {non_neg_integer(), Macro.t()} | nil
-  def effective_arg(args, pipe_mode, arity, effective_index) do
-    with ^arity <- Mutator.effective_arity(args, pipe_mode),
-         index when is_integer(index) <- Mutator.visible_index(effective_index, pipe_mode),
+  def arg_at(args, arity, index) do
+    with ^arity <- length(args),
          value when not is_nil(value) <- Enum.at(args, index) do
       {index, value}
     else
@@ -139,24 +138,12 @@ defmodule Mutare.Swoosh.AST do
     end
   end
 
-  # The pipe-aware "remove this call, keep the email" replacement: a direct call collapses to
-  # its first argument; a piped stage becomes `Elixir.Function.identity()` (absolute, so no
-  # alias in the target source can redirect it).
-  @spec collapse_to_email([Macro.t()], Mutator.pipe_mode()) :: Macro.t() | nil
-  def collapse_to_email(_args, :piped), do: AST.absolute_call([:Function], :identity, [])
-  def collapse_to_email([email | _rest], :unpiped), do: email
-  def collapse_to_email([], :unpiped), do: nil
-
-  # The pipe-aware "replace this call with a constant" replacement: a direct call becomes the
-  # value; a piped stage becomes `Elixir.Kernel.then(fn _ -> value end)` so the pipe stays legal
-  # and its left side is still evaluated.
-  @spec constant_stage(Macro.t(), Mutator.pipe_mode()) :: Macro.t()
-  def constant_stage(value, :unpiped), do: value
-
-  def constant_stage(value, :piped) do
-    ignore_arg = {:fn, [], [{:->, [], [[{:_, [], nil}], value]}]}
-    AST.absolute_call([:Kernel], :then, [ignore_arg])
-  end
+  # The "remove this call, keep the email" replacement: the call collapses to its first
+  # argument. A piped stage arrives as the direct call, so this covers both spellings — core
+  # reports a removed stage over the pipe it was written in (`email |> header(…)` → `email`).
+  @spec collapse_to_email([Macro.t()]) :: Macro.t() | nil
+  def collapse_to_email([email | _rest]), do: email
+  def collapse_to_email([]), do: nil
 
   # `{:ok, %{}}` — a literal 2-tuple node of clean-meta quoted forms.
   @spec ok_empty_map() :: Macro.t()

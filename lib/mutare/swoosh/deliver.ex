@@ -4,8 +4,8 @@ defmodule Mutare.Swoosh.Deliver do
 
   A `deliver(email)` / `deliver(email, config)` call on a configured mailer is replaced by the
   literal `{:ok, %{}}`, and `deliver!/1,2` by `%{}` — the shapes a successful Swoosh delivery
-  returns, with nothing sent. A piped stage becomes `Kernel.then(fn _ -> ... end)` so the pipe
-  stays legal and the email is still built. A survivor indicates that no test detected the
+  returns, with nothing sent. A piped stage (`email |> Mailer.deliver()`) is replaced over the
+  whole pipe, and the email is still built. A survivor indicates that no test detected the
   skipped delivery. Use `Swoosh.TestAssertions.assert_email_sent/1` to assert that an email was sent.
 
   The mailer module is application-specific, so this is a configurable mutator — without the
@@ -89,11 +89,11 @@ defmodule Mutare.Swoosh.Deliver do
   # without it is a programming error, so the second clause fails loudly rather than letting the
   # family silently produce nothing.
   @impl Mutare.Mutator
-  def mutate(node, %{config: mailers, pipe_mode: pipe_mode}) when is_list(mailers) do
+  def mutate(node, %{config: mailers}) when is_list(mailers) do
     with {mailer, fun, args, _rebuild} <- Calls.resolved_call(node),
          true <- mailer in mailers and fun in @functions,
-         true <- Mutare.Mutator.effective_arity(args, pipe_mode) in [1, 2] do
-      [mutation(fun, pipe_mode)]
+         true <- length(args) in [1, 2] do
+      [mutation(fun)]
     else
       _ -> :skip
     end
@@ -102,11 +102,11 @@ defmodule Mutare.Swoosh.Deliver do
   def mutate(_node, context) do
     raise ArgumentError,
           "Mutare.Swoosh.Deliver.mutate/2 expected core's callback context with the " <>
-            "init/1-parsed :config and a :pipe_mode, got: #{inspect(context)}"
+            "init/1-parsed :config, got: #{inspect(context)}"
   end
 
-  defp mutation(:deliver, pipe_mode) do
-    Mutation.new(SAST.constant_stage(SAST.ok_empty_map(), pipe_mode),
+  defp mutation(:deliver) do
+    Mutation.new(SAST.ok_empty_map(),
       variant: "deliver",
       note:
         "deliver replaced by {:ok, %{}} - nothing is sent; no test asserts delivery " <>
@@ -114,8 +114,8 @@ defmodule Mutare.Swoosh.Deliver do
     )
   end
 
-  defp mutation(:deliver!, pipe_mode) do
-    Mutation.new(SAST.constant_stage(SAST.empty_map(), pipe_mode),
+  defp mutation(:deliver!) do
+    Mutation.new(SAST.empty_map(),
       variant: "deliver!",
       note:
         "deliver! replaced by %{} - nothing is sent; no test asserts delivery " <>

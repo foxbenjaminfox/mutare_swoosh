@@ -15,7 +15,7 @@ defmodule Mutare.Swoosh.ProviderOptionTest do
     assert muts == ["email"]
   end
 
-  test "removes a piped put_provider_option stage via identity" do
+  test "removes a piped put_provider_option stage, leaving what was piped in" do
     source = """
     defmodule Mail do
       import Swoosh.Email
@@ -27,7 +27,7 @@ defmodule Mutare.Swoosh.ProviderOptionTest do
     end
     """
 
-    assert mutateds(source) == ["Elixir.Function.identity()"]
+    assert mutateds(source) == ["new()"]
   end
 
   test "removes an aliased put_provider_option call" do

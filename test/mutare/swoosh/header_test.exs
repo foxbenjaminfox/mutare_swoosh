@@ -18,9 +18,9 @@ defmodule Mutare.Swoosh.HeaderTest do
     assert muts == ["email"]
   end
 
-  test "removes a piped header stage via identity" do
+  test "removes a piped header stage, leaving what was piped in" do
     muts = mutateds(import_mail(~s'new() |> header("X-Tag", "welcome")'))
-    assert muts == ["Elixir.Function.identity()"]
+    assert muts == ["new()"]
   end
 
   test "removes an aliased header call" do

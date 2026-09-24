@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking: Mutare 0.4.0 or newer is required** (`{:mutare, "~> 0.4.0"}`). Mutare
+  now offers a pipe stage to a mutator as the call it is sugar for, so the families no
+  longer carry pipe-specific replacements:
+  - A removed piped stage reads as what was piped into it: `new() |> header("X-Tag", v)`
+    → `new()` (was `header("X-Tag", v)` → `Elixir.Function.identity()`). The same holds
+    for the `attachment/2`, `reply_to/2` and `put_provider_option/3` removals.
+  - A piped `Mailer.deliver()` / `deliver!()` stage is replaced over the whole pipe:
+    `email |> Mailer.deliver()` → `{:ok, %{}}` (was
+    `Elixir.Kernel.then(fn _ -> {:ok, %{}} end)`). The email is still built.
+  - `# mutare:ignore` directives and `--line` selections on a stage keep working as before.
+
 ## [0.1.1] - 2026-09-07
 
 ### Fixed

@@ -18,14 +18,14 @@ defmodule Mutare.Swoosh.Body do
   def variants, do: ~w(html_body text_body)
 
   @impl Mutare.Mutator
-  def mutate(node, %{pipe_mode: pipe_mode}) do
-    (call_mutations(node, pipe_mode) ++ new_option_mutations(node, pipe_mode)) |> present()
+  def mutate(node) do
+    (call_mutations(node) ++ new_option_mutations(node)) |> present()
   end
 
-  defp call_mutations(node, pipe_mode) do
+  defp call_mutations(node) do
     case Calls.resolved_call_to(node, Swoosh.Email, @fields) do
       {:ok, fun, args, rebuild} ->
-        case SAST.value_arg(args, pipe_mode) do
+        case SAST.value_arg(args) do
           {_index, _value} ->
             target = target(fun)
             [mutation(rebuild.(target, args), target)]
@@ -39,10 +39,10 @@ defmodule Mutare.Swoosh.Body do
     end
   end
 
-  defp new_option_mutations(node, pipe_mode) do
+  defp new_option_mutations(node) do
     case Calls.resolved_call_to(node, Swoosh.Email, :new) do
       {:ok, :new, args, rebuild} ->
-        case SAST.new_opts_arg(args, pipe_mode) do
+        case SAST.new_opts_arg(args) do
           {arg_index, {kind, entries, wrap}} ->
             entries
             |> Enum.with_index()

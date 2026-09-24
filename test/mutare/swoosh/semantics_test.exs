@@ -1,6 +1,6 @@
 defmodule Mutare.Swoosh.SemanticsTest do
-  # Selecting a mutant is VM-global (see Mutare.Test), so these live-mutant checks are not async.
-  use ExUnit.Case, async: false
+  # Mutare.Test selects on a key private to this module, so the live-mutant checks run async.
+  use ExUnit.Case, async: true
 
   import Mutare.Test
 
@@ -23,7 +23,7 @@ defmodule Mutare.Swoosh.SemanticsTest do
     assert {:ok, %{email: "mail"}} = mod.piped("mail")
 
     direct_id = site_id(sites, {"Mailer.deliver(email)", "{:ok, %{}}"})
-    piped_id = site_id(sites, {~r/deliver/, ~r/then/})
+    piped_id = site_id(sites, {"email |> Mailer.deliver()", "{:ok, %{}}"})
 
     assert with_active_mutant(direct_id, fn -> mod.direct("mail") end) == {:ok, %{}}
     assert with_active_mutant(piped_id, fn -> mod.piped("mail") end) == {:ok, %{}}
@@ -42,7 +42,7 @@ defmodule Mutare.Swoosh.SemanticsTest do
     """
 
     {[mod], sites} = compile_metamutant(source, [Header])
-    id = site_id(sites, {~r/header/, "Elixir.Function.identity()"})
+    id = site_id(sites, {~r/header/, "new()"})
 
     assert mod.build().headers == %{"X-Tag" => "welcome"}
     assert with_active_mutant(id, fn -> mod.build() end).headers == %{}

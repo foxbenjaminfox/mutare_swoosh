@@ -52,9 +52,9 @@ defmodule Mutare.Swoosh.AttachmentTest do
     assert "email" in muts
   end
 
-  test "removes a piped attachment stage via identity" do
+  test "removes a piped attachment stage, leaving what was piped in" do
     muts = mutateds(import_mail(~s'new() |> attachment(Swoosh.Attachment.new("qr.png"))'))
-    assert "Elixir.Function.identity()" in muts
+    assert "new()" in muts
   end
 
   test "drops the attachment option from Swoosh.Email.new/1" do

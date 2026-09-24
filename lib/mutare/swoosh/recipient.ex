@@ -47,14 +47,14 @@ defmodule Mutare.Swoosh.Recipient do
   def variants, do: ~w(to cc bcc delete append)
 
   @impl Mutare.Mutator
-  def mutate(node, %{pipe_mode: pipe_mode}) do
-    (call_mutations(node, pipe_mode) ++ new_option_mutations(node, pipe_mode)) |> present()
+  def mutate(node) do
+    (call_mutations(node) ++ new_option_mutations(node)) |> present()
   end
 
-  defp call_mutations(node, pipe_mode) do
+  defp call_mutations(node) do
     case Calls.resolved_call_to(node, Swoosh.Email, @add_fields ++ @put_fields) do
       {:ok, fun, args, rebuild} ->
-        with {index, recipients} <- SAST.value_arg(args, pipe_mode),
+        with {index, recipients} <- SAST.value_arg(args),
              false <- fun in @add_fields and SAST.empty_list?(recipients) do
           class_swaps(fun, args, rebuild) ++
             append_swaps(fun, args, rebuild) ++
@@ -103,10 +103,10 @@ defmodule Mutare.Swoosh.Recipient do
     end
   end
 
-  defp new_option_mutations(node, pipe_mode) do
+  defp new_option_mutations(node) do
     case Calls.resolved_call_to(node, Swoosh.Email, :new) do
       {:ok, :new, args, rebuild} ->
-        case SAST.new_opts_arg(args, pipe_mode) do
+        case SAST.new_opts_arg(args) do
           {index, {kind, entries, wrap}} ->
             option_key_swaps(kind, entries, wrap, args, index, rebuild) ++
               option_recipient_deletes(entries, wrap, args, index, rebuild)
