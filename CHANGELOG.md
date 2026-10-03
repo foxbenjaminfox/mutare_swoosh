@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-03
+
+### Changed
+
+- Requires Mutare 0.5 (`{:mutare, "~> 0.5.0"}`).
+
 ## [0.2.0] - 2026-09-26
 
 ### Changed
@@ -74,7 +80,8 @@ Initial release.
 - `Mutare.Swoosh.all/0` for splicing all families into a `:mutators` list;
   `Mutare.Swoosh.all/1` to configure the deliver family's `mailer:` in place.
 
-[Unreleased]: https://github.com/foxbenjaminfox/mutare_swoosh/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/foxbenjaminfox/mutare_swoosh/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/foxbenjaminfox/mutare_swoosh/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/foxbenjaminfox/mutare_swoosh/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/foxbenjaminfox/mutare_swoosh/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/foxbenjaminfox/mutare_swoosh/releases/tag/v0.1.0
