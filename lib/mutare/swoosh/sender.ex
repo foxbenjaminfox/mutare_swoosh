@@ -1,24 +1,22 @@
 defmodule Mutare.Swoosh.Sender do
   @moduledoc """
-  :swoosh_sender swaps from and reply_to in Swoosh email construction, and removes reply_to.
+  :swoosh_sender swaps the sender and reply-to mailboxes in literal Swoosh.Email.new/1 options
+  and removes reply-to settings.
 
-  A literal list reply_to value is not changed into from, because Swoosh.Email.from/2 accepts a
-  single mailbox while reply_to/2 may accept a list. The removal has no such restriction: a
-  `reply_to(email, value)` call collapses to the email (a piped stage to what was piped into
-  it), and the `reply_to:` option in Swoosh.Email.new/1 is dropped — replies then silently go
-  to `from`.
+  A swap requires one `:from` and one `:reply_to` option, each holding a recognizable single
+  mailbox. Both options remain present, so Swoosh can still deliver the email. The swap carries
+  both the `from` and `reply_to` ignore labels.
 
-  No `from` removal is generated: Swoosh validates the sender at delivery, so that mutant would
-  fail validation without testing assertions about the sender.
+  The `delete` variant removes a `reply_to(email, value)` call or a `:reply_to` option.
+  With no reply-to address left, replies go to `from`.
   """
 
   @behaviour Mutare.Mutator
 
+  alias Mutare.AST
   alias Mutare.Calls
   alias Mutare.Mutator.Mutation
   alias Mutare.Swoosh.AST, as: SAST
-
-  @fields ~w(from reply_to)a
 
   @impl Mutare.Mutator
   def name, do: :swoosh_sender
@@ -28,88 +26,53 @@ defmodule Mutare.Swoosh.Sender do
 
   @impl Mutare.Mutator
   def mutate(node) do
-    (call_mutations(node) ++ new_option_mutations(node)) |> present()
+    case Calls.resolved_call_to(node, Swoosh.Email, [:reply_to, :new]) do
+      {:ok, :reply_to, [email, _value], _rebuild} -> [drop_mutation(email)]
+      {:ok, :new, [opts], rebuild} -> new_option_mutations(opts, rebuild)
+      _ -> :skip
+    end
   end
 
-  defp call_mutations(node) do
-    case Calls.resolved_call_to(node, Swoosh.Email, @fields) do
-      {:ok, fun, args, rebuild} ->
-        case SAST.value_arg(args) do
-          {_index, value} ->
-            swap_mutations(fun, value, args, rebuild) ++ drop_mutations(fun, args)
+  defp new_option_mutations(opts, rebuild) do
+    case SAST.opts_container(opts) do
+      {:ok, {_kind, entries, wrap}} ->
+        rebuild_new = fn new_entries -> rebuild.(:new, [wrap.(new_entries)]) end
 
-          nil ->
-            []
+        indexed = Enum.with_index(entries)
+        by_key = Enum.group_by(indexed, fn {entry, _index} -> SAST.key(entry) end)
+
+        drops =
+          for {_entry, index} <- Map.get(by_key, :reply_to, []) do
+            entries |> List.delete_at(index) |> rebuild_new.() |> drop_mutation()
+          end
+
+        case swap_mutation(by_key, entries, rebuild_new) ++ drops do
+          [] -> :skip
+          mutations -> mutations
         end
 
       :error ->
-        []
+        :skip
     end
   end
 
-  defp swap_mutations(fun, value, args, rebuild) do
-    case target(fun, value) do
-      nil -> []
-      target -> [swap_mutation(rebuild.(target, args), target)]
-    end
-  end
-
-  defp drop_mutations(:reply_to, args) do
-    case SAST.collapse_to_email(args) do
-      nil -> []
-      collapsed -> [drop_mutation(collapsed)]
-    end
-  end
-
-  defp drop_mutations(:from, _args), do: []
-
-  defp new_option_mutations(node) do
-    case Calls.resolved_call_to(node, Swoosh.Email, :new) do
-      {:ok, :new, args, rebuild} ->
-        case SAST.new_opts_arg(args) do
-          {arg_index, {kind, entries, wrap}} ->
-            entries
-            |> Enum.with_index()
-            |> Enum.flat_map(fn {entry, entry_index} ->
-              case SAST.key(entry) do
-                key when key in @fields ->
-                  option_key_swap(
-                    kind,
-                    entry,
-                    entries,
-                    entry_index,
-                    wrap,
-                    args,
-                    arg_index,
-                    rebuild
-                  ) ++
-                    option_drop(key, entries, entry_index, wrap, args, arg_index, rebuild)
-
-                _other ->
-                  []
-              end
-            end)
-
-          nil ->
-            []
-        end
-
-      :error ->
-        []
-    end
-  end
-
-  defp option_key_swap(kind, entry, entries, entry_index, wrap, args, arg_index, rebuild) do
-    with key when key in @fields <- SAST.key(entry),
-         {_key, value} <- entry,
-         target when not is_nil(target) <- target(key, value),
-         true <- SAST.unique_key?(kind, entries, target) do
-      mutated_entries = List.replace_at(entries, entry_index, SAST.replace_key(entry, target))
+  defp swap_mutation(by_key, entries, rebuild) do
+    with %{
+           from: [{{_from_key, from_value} = from_entry, from_index}],
+           reply_to: [{{_reply_key, reply_value} = reply_entry, reply_index}]
+         } <- by_key,
+         false <- Map.has_key?(by_key, nil),
+         {:ok, from} <- mailbox(AST.unwrap_literal(from_value)),
+         {:ok, reply_to} when reply_to != from <- mailbox(AST.unwrap_literal(reply_value)) do
+      swapped =
+        entries
+        |> List.replace_at(from_index, SAST.replace_value(from_entry, reply_value))
+        |> List.replace_at(reply_index, SAST.replace_value(reply_entry, from_value))
 
       [
-        swap_mutation(
-          rebuild.(:new, List.replace_at(args, arg_index, wrap.(mutated_entries))),
-          target
+        Mutation.new(rebuild.(swapped),
+          variant: [:from, :reply_to],
+          note: "sender and reply-to exchanged - no test detected the mailbox swap"
         )
       ]
     else
@@ -117,29 +80,18 @@ defmodule Mutare.Swoosh.Sender do
     end
   end
 
-  defp option_drop(:reply_to, entries, entry_index, wrap, args, arg_index, rebuild) do
-    mutated_entries = List.delete_at(entries, entry_index)
+  defp mailbox(address) when is_binary(address) and address != "", do: {:ok, {"", address}}
 
-    [drop_mutation(rebuild.(:new, List.replace_at(args, arg_index, wrap.(mutated_entries))))]
-  end
-
-  defp option_drop(:from, _entries, _entry_index, _wrap, _args, _arg_index, _rebuild), do: []
-
-  defp target(:from, _value), do: :reply_to
-
-  defp target(:reply_to, value) do
-    case SAST.list_container(value) do
-      {:ok, _items, _wrap} -> nil
-      :error -> :from
+  defp mailbox({name, address}) do
+    with name when is_binary(name) or is_nil(name) <- AST.unwrap_literal(name),
+         address when is_binary(address) and address != "" <- AST.unwrap_literal(address) do
+      {:ok, {name || "", address}}
+    else
+      _ -> :error
     end
   end
 
-  defp swap_mutation(node, target) do
-    Mutation.new(node,
-      variant: target,
-      note: "sender moved to #{target} - no test asserts from/reply-to semantics"
-    )
-  end
+  defp mailbox(_value), do: :error
 
   defp drop_mutation(node) do
     Mutation.new(node,
@@ -147,7 +99,4 @@ defmodule Mutare.Swoosh.Sender do
       note: "reply_to removed - replies silently go to from; no test asserts the reply-to address"
     )
   end
-
-  defp present([]), do: :skip
-  defp present([_ | _] = mutations), do: mutations
 end

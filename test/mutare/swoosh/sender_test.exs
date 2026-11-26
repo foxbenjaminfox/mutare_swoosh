@@ -5,80 +5,83 @@ defmodule Mutare.Swoosh.SenderTest do
 
   alias Mutare.Swoosh.Sender
 
-  defp sender_diffs(source), do: diffs_for(source, [Sender], :swoosh_sender)
-  defp mutateds(source), do: sender_diffs(source) |> Enum.map(&elem(&1, 1))
-
-  defp mail(body), do: "defmodule Mail do\n  import Swoosh.Email\n  def build, do: #{body}\nend\n"
-
-  test "swaps from to reply_to" do
-    muts = mutateds(mail(~s'new() |> from("sender@example.com")'))
-    assert Enum.any?(muts, &(&1 =~ ~s'reply_to("sender@example.com")'))
+  defp mutateds(source) do
+    source
+    |> diffs_for([Sender], :swoosh_sender)
+    |> Enum.map(&elem(&1, 1))
   end
 
-  test "swaps scalar reply_to to from" do
-    muts = mutateds(mail(~s'new() |> reply_to("reply@example.com")'))
-    assert Enum.any?(muts, &(&1 =~ ~s'from("reply@example.com")'))
+  defp mail(body) do
+    """
+    defmodule Mail do
+      import Swoosh.Email
+      def build(email, reply), do: #{body}
+    end
+    """
   end
 
-  test "does not turn a literal reply_to list into from, but still drops it" do
-    muts = mutateds(mail(~s'new() |> reply_to(["a@example.com", "b@example.com"])'))
-
-    refute Enum.any?(muts, &(&1 =~ "from("))
-    assert muts == ["new()"]
+  test "leaves a lone sender in place" do
+    assert mutateds(mail(~s'email |> from("sender@example.com")')) == []
+    assert mutateds(mail(~s'Swoosh.Email.from(email, "sender@example.com")')) == []
+    assert mutateds(mail(~s'new(from: "sender@example.com")')) == []
   end
 
-  test "drops a direct reply_to call by collapsing to the email" do
-    muts = mutateds(mail(~s'Swoosh.Email.reply_to(email, "reply@example.com")'))
-    assert "email" in muts
+  test "drops direct and piped reply-to calls for scalars, literal lists and opaque values" do
+    assert mutateds(mail(~s'Swoosh.Email.reply_to(email, "reply@example.com")')) == ["email"]
+    assert mutateds(mail(~s'new() |> reply_to(["a@example.com", "b@example.com"])')) == ["new()"]
+    assert mutateds(mail(~s'new() |> reply_to(reply)')) == ["new()"]
   end
 
-  test "drops a piped reply_to stage, leaving what was piped in" do
-    muts = mutateds(mail(~s'new() |> reply_to("reply@example.com")'))
-    assert "new()" in muts
+  test "swaps two distinct mailboxes in keyword options and also drops reply-to" do
+    source = mail(~s'new(from: {"Sender", "s@example.com"}, reply_to: "r@example.com")')
+
+    assert mutateds(source) == [
+             ~s'new(from: "r@example.com", reply_to: {"Sender", "s@example.com"})',
+             ~s'new(from: {"Sender", "s@example.com"})'
+           ]
   end
 
-  test "does not drop from" do
-    muts = mutateds(mail(~s'Swoosh.Email.from(email, "sender@example.com")'))
+  test "swaps two single mailboxes in map options without renaming their keys" do
+    source =
+      mail(~s'Swoosh.Email.new(%{from: "s@example.com", reply_to: {nil, "r@example.com"}})')
 
-    refute "email" in muts
-    refute Enum.any?(muts, &(&1 =~ "identity"))
+    assert mutateds(source) == [
+             ~s'Swoosh.Email.new(%{from: {nil, "r@example.com"}, reply_to: "s@example.com"})',
+             ~s'Swoosh.Email.new(%{from: "s@example.com"})'
+           ]
   end
 
-  test "mutates Swoosh.Email.new/1 sender option keys" do
-    muts = mutateds(mail(~s'Swoosh.Email.new(from: "sender@example.com")'))
-    assert Enum.any?(muts, &(&1 =~ ~s'reply_to: "sender@example.com"'))
+  test "drops reply-to without swapping when a mailbox cannot be established" do
+    for value <- [~s'["r@example.com"]', "reply", ~s'""', ~s'{"Name", ""}'] do
+      source = mail(~s'new(from: "s@example.com", reply_to: #{value})')
+      assert mutateds(source) == [~s'new(from: "s@example.com")']
+    end
   end
 
-  test "drops the reply_to option from Swoosh.Email.new/1" do
-    muts = mutateds(mail(~s'Swoosh.Email.new(from: "s@example.com", reply_to: "r@example.com")'))
+  test "skips swaps with equivalent mailboxes or ambiguous option keys" do
+    equivalent = mail(~s'new(from: "s@example.com", reply_to: {nil, "s@example.com"})')
 
-    assert Enum.any?(muts, fn mut ->
-             mut =~ ~s'from: "s@example.com"' and not String.contains?(mut, "reply_to:")
-           end)
-  end
+    duplicate =
+      mail(~s'new(from: "first@example.com", from: "s@example.com", reply_to: "r@example.com")')
 
-  test "does not drop the from option from Swoosh.Email.new/1" do
-    muts = mutateds(mail(~s'Swoosh.Email.new(from: "s@example.com")'))
-    refute Enum.any?(muts, &(&1 == "Swoosh.Email.new([])"))
-  end
-
-  test "avoids duplicate sender keys in map options but still drops reply_to" do
-    muts =
-      mutateds(
-        mail(~s'Swoosh.Email.new(%{from: "sender@example.com", reply_to: "r@example.com"})')
+    dynamic =
+      mail(
+        ~s'new(%{reply => "other@example.com", from: "s@example.com", reply_to: "r@example.com"})'
       )
 
-    assert muts == [~s'Swoosh.Email.new(%{from: "sender@example.com"})']
+    assert mutateds(equivalent) == [~s'new(from: "s@example.com")']
+    assert mutateds(duplicate) == [~s'new(from: "first@example.com", from: "s@example.com")']
+    assert mutateds(dynamic) == [~s'new(%{reply => "other@example.com", from: "s@example.com"})']
   end
 
-  test "declares variants and tags the drop mutants with delete" do
+  test "keeps both ignore labels for the swap and the delete label for removal" do
     assert Sender.variants() == ~w(from reply_to delete)
+    source = mail(~s'new(from: "s@example.com", reply_to: "r@example.com")')
+    result = Mutare.transform_string(source, mutators: [Sender])
 
-    result =
-      Mutare.transform_string(mail(~s'new() |> reply_to("r@example.com")'), mutators: [Sender])
-
-    drop = Enum.find(result.mutants, &(&1.variant == ["delete"]))
-
+    assert [swap, drop] = result.mutants
+    assert Enum.sort(swap.variant) == ~w(from reply_to)
+    assert drop.variant == ["delete"]
     assert drop.note =~ "replies silently go to from"
   end
 end

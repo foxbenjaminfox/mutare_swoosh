@@ -66,7 +66,7 @@ mix mutare
 | --- | --- | --- | --- |
 | `Mutare.Swoosh.Deliver` | `:swoosh_deliver` | replaces `Mailer.deliver/1,2` with a non-delivering `{:ok, %{}}` (`deliver!/1,2` → `%{}`) on the configured mailer(s) | **no test asserts the email was actually sent** — `assert_email_sent` |
 | `Mutare.Swoosh.Recipient` | `:swoosh_recipient` | swaps recipient classes (`to`/`cc`/`bcc`; `put_to`/`put_cc`/`put_bcc`), deletes one recipient from literal values, and weakens `put_*` → plain (replace became append) | no test checks the recipients or their class — the `cc`↔`bcc` swap affects recipient privacy |
-| `Mutare.Swoosh.Sender` | `:swoosh_sender` | swaps `from` ↔ `reply_to`; drops `reply_to` | replies silently go to `from`; no test asserts the reply-to address |
+| `Mutare.Swoosh.Sender` | `:swoosh_sender` | exchanges two distinct single mailboxes in `new/1` options, and drops `reply_to` calls or options | no test checks the sender and reply-to addresses |
 | `Mutare.Swoosh.Subject` | `:swoosh_subject` | blanks the subject to `""` | no test reads the subject |
 | `Mutare.Swoosh.Body` | `:swoosh_body` | swaps `html_body` ↔ `text_body` | no test distinguishes which body part carries the content |
 | `Mutare.Swoosh.Header` | `:swoosh_header` | removes `header/3`; drops entries from a `headers:` option | no test asserts the custom header |

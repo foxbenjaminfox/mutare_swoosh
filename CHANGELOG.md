@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Sender swaps exchange the values of one `from:` and one `reply_to:` option in a literal
+  `new/1` call when both hold distinct literal single mailboxes, so the mutant keeps a valid
+  sender. The swap carries both the `from` and `reply_to` ignore labels. Reply-to removal
+  still applies to calls and options.
+
+### Removed
+
+- Sender no longer swaps `from/2` ↔ `reply_to/2` calls, so emails built in a pipeline get only
+  the reply-to removal. It no longer renames `from:` or `reply_to:` keys in `new/1` options,
+  so options whose values are not literal mailboxes get no swap.
+
 ## [0.2.1] - 2026-10-03
 
 ### Changed
