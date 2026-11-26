@@ -130,7 +130,8 @@ defmodule Mutare.Swoosh.DeliverTest do
       Deliver.init(mailers: Mailer)
     end
 
-    assert_raise ArgumentError, ~r/must be a keyword list/, fn -> Deliver.init(42) end
+    # apply/3 hides the deliberately ill-typed argument from the type checker, which warns on it.
+    assert_raise ArgumentError, ~r/must be a keyword list/, fn -> apply(Deliver, :init, [42]) end
   end
 
   test "mutate/2 refuses a context without the init/1-parsed config" do
