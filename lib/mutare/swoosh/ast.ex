@@ -72,15 +72,31 @@ defmodule Mutare.Swoosh.AST do
   @spec recipient_deletions(Macro.t()) :: [Macro.t()]
   def recipient_deletions(node) do
     case list_container(node) do
-      {:ok, [], _wrap} ->
-        []
-
-      {:ok, items, wrap} ->
-        for index <- 0..(length(items) - 1), do: wrap.(List.delete_at(items, index))
-
-      :error ->
-        [empty_list()]
+      {:ok, items, wrap} -> list_deletions(items, wrap)
+      :error -> [empty_list()]
     end
+  end
+
+  defp list_deletions(items, wrap) do
+    # The final AST item of [first, last | tail] holds both last and tail.
+    case List.pop_at(items, -1) do
+      {{:|, meta, [last_head, tail]}, prefix} ->
+        delete_each(prefix ++ [last_head], &rebuild_cons(&1, tail, meta, wrap))
+
+      _proper_list ->
+        delete_each(items, wrap)
+    end
+  end
+
+  defp delete_each(items, rebuild) do
+    for {_item, index} <- Enum.with_index(items), do: rebuild.(List.delete_at(items, index))
+  end
+
+  defp rebuild_cons([], tail, _meta, _wrap), do: tail
+
+  defp rebuild_cons(heads, tail, meta, wrap) do
+    {last_head, prefix} = List.pop_at(heads, -1)
+    wrap.(prefix ++ [{:|, meta, [last_head, tail]}])
   end
 
   @spec literal_atom(Macro.t()) :: atom() | nil

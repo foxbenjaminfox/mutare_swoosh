@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Delivery mutants evaluate the original email and config arguments once in source order.
+- Recipient deletions preserve the tail of a list written with `|`.
 
 ## [0.2.1] - 2026-10-03
 

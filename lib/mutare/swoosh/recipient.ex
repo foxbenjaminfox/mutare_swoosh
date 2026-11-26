@@ -5,7 +5,8 @@ defmodule Mutare.Swoosh.Recipient do
   The family swaps recipient classes to, cc, and bcc for both append-style calls and put-style
   calls. It also deletes one recipient from recipient values, and weakens each put-style call to
   the corresponding append-style call (`put_to` becomes `to`, and likewise for cc and bcc).
-  The class swaps and deletions also apply inside Swoosh.Email.new/1 options.
+  A list such as `[first | rest]` can lose an explicit head while keeping its tail. The class
+  swaps and deletions also apply inside Swoosh.Email.new/1 options.
 
   The put-to-append swap is deliberately one-directional: `put_to` explicitly replaces existing
   recipients, so tests should check that replacement; plain `to` only appends recipients, so no

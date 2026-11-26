@@ -68,6 +68,43 @@ defmodule Mutare.Swoosh.RecipientTest do
     assert Enum.any?(muts, &(&1 =~ ~s'to(["a@example.com"])'))
   end
 
+  test "each deletion removes one explicit recipient and preserves the order of the tail" do
+    for count <- 1..4 do
+      heads = for index <- 1..count, do: "head#{index}@example.com"
+      prefix = Enum.map_join(heads, ", ", &inspect/1)
+
+      source = """
+      defmodule Mail do
+        import Swoosh.Email
+
+        def build(tail), do: new() |> to([#{prefix} | tail])
+      end
+      """
+
+      {[mod], sites} = compile_metamutant(source, [Recipient])
+      deletes = Enum.filter(sites, &(&1.variant == ["delete"]))
+
+      for tail <- [[], ["first-tail@example.com", "second-tail@example.com"]] do
+        assert mod.build(tail).to == heads ++ tail
+
+        mutated_recipients =
+          for site <- deletes do
+            with_active_mutant(site.id, fn -> mod.build(tail).to end)
+          end
+
+        expected =
+          for index <- 0..(count - 1), do: List.delete_at(heads, index) ++ tail
+
+        assert Enum.sort(mutated_recipients) == Enum.sort(expected)
+      end
+    end
+  end
+
+  test "deleting the only explicit head in constructor options leaves the tail expression" do
+    source = mail(~s'Swoosh.Email.new(to: ["first@example.com" | user])')
+    assert ~s'Swoosh.Email.new(to: user)' in mutateds(source)
+  end
+
   test "deletes a scalar recipient by replacing it with an empty list" do
     assert Enum.any?(mutateds(mail(~s'new() |> cc("a@example.com")')), &(&1 =~ "cc([])"))
   end
