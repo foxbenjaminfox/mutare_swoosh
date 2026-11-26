@@ -1,6 +1,8 @@
 /_build/
 /cover/
 /deps/
+/integration/_build/
+/integration/deps/
 /doc/
 /.fetch
 /.elixir_ls/

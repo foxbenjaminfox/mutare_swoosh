@@ -42,6 +42,30 @@ defmodule Mutare.Swoosh.ProviderOptionTest do
     assert mutateds(source) == ["email"]
   end
 
+  test "drops one key at a time from a constructor's provider options map" do
+    source =
+      mail(
+        ~s'Swoosh.Email.new(subject: "Welcome", provider_options: %{template_id: "tpl-1", tracking: true})'
+      )
+
+    assert mutateds(source) == [
+             ~s'Swoosh.Email.new(subject: "Welcome", provider_options: %{tracking: true})',
+             ~s'Swoosh.Email.new(subject: "Welcome", provider_options: %{template_id: "tpl-1"})'
+           ]
+  end
+
+  test "keeps a provider options map when dropping its only entry" do
+    source = mail(~s'Swoosh.Email.new(%{provider_options: %{template_id: "tpl-1"}})')
+    assert mutateds(source) == [~s'Swoosh.Email.new(%{provider_options: %{}})']
+  end
+
+  test "skips empty or opaque provider options and other constructor fields" do
+    assert mutateds(mail(~s'Swoosh.Email.new(provider_options: %{})')) == []
+    assert mutateds(mail(~s'Swoosh.Email.new(provider_options: config())')) == []
+    assert mutateds(mail(~s'Swoosh.Email.new(headers: %{"X-A" => "1"})')) == []
+    assert mutateds(mail(~s'Other.new(provider_options: %{tracking: true})')) == []
+  end
+
   test "does not match other modules or other arities" do
     assert mutateds(mail(~s'Other.put_provider_option(email, :template_id, "tpl-1")')) == []
     assert mutateds(mail(~s'Swoosh.Email.put_provider_option(email, :template_id)')) == []

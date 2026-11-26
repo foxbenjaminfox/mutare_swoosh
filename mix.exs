@@ -52,12 +52,8 @@ defmodule Mutare.Swoosh.MixProject do
       # and rides only its public extension points (`Mutare.Calls`, `Mutare.AST`).
       # A consuming project depends on both as `:dev`/`:test` deps.
       #
-      # Swoosh itself is deliberately NOT a dependency, not even in :test: the
-      # mutators match calls purely syntactically, and the test suite's stand-ins
-      # (test/support/swoosh_stubs.ex) claim the real `Swoosh.Email` /
-      # `Swoosh.Attachment` module names so bare-import resolution reflects on real
-      # exports — a real :swoosh test dep would collide with them. Stub fidelity is
-      # maintained against Swoosh's source by hand (see the stubs' comments).
+      # The isolated Mix project in integration/ exercises real Swoosh. The unit
+      # suite defines stand-ins under the real module names for import resolution.
       {:mutare, "~> 0.5.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},

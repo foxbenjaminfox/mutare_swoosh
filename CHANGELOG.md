@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Provider-option mutants drop individual entries from literal `provider_options:` maps in `new/1`.
+- CI exercises active mutants with real Swoosh and its test adapter.
+
 ### Changed
 
 - Sender swaps exchange the values of one `from:` and one `reply_to:` option in a literal

@@ -71,13 +71,11 @@ mix mutare
 | `Mutare.Swoosh.Body` | `:swoosh_body` | swaps `html_body` ↔ `text_body` | no test distinguishes which body part carries the content |
 | `Mutare.Swoosh.Header` | `:swoosh_header` | removes `header/3`; drops entries from a `headers:` option | no test asserts the custom header |
 | `Mutare.Swoosh.Attachment` | `:swoosh_attachment` | swaps disposition (`type: :inline` ↔ `:attachment`); removes the attachment entirely | no test asserts the attachment exists, or how it displays |
-| `Mutare.Swoosh.ProviderOption` | `:swoosh_provider_option` | removes `put_provider_option/3` | no test asserts the provider option — such as template ids or dynamic template data |
+| `Mutare.Swoosh.ProviderOption` | `:swoosh_provider_option` | removes `put_provider_option/3` calls and drops entries from literal `provider_options:` maps | no test asserts the provider option — such as template ids or dynamic template data |
 
-Every email-field family mutates both the pipeline call
-(`email |> subject("Welcome")`) and the matching `Swoosh.Email.new/1` option
-(`Email.new(subject: "Welcome")`). Calls match written qualified, aliased,
-imported, or as a pipe stage, and every replacement is itself a valid Swoosh
-program — a survivor means a missing assertion, not a crash.
+Email-field families cover pipeline calls and matching literal `Swoosh.Email.new/1`
+options. They also recognize qualified, aliased, and imported calls. A surviving
+mutant means the test run passed with the reported change active.
 
 ## Ignoring one kind of mutant
 
@@ -109,15 +107,18 @@ pre-existing recipients.
 
 ## Development
 
-The test suite runs against stand-in
-`Swoosh.Email`/`Swoosh.Attachment` modules (`test/support/swoosh_stubs.ex`)
-that mirror the real API — kept faithful by hand, since a real `:swoosh` test
-dep would collide with them.
+The unit suite uses stand-ins for `Swoosh.Email` and `Swoosh.Attachment`. The isolated
+Mix project in `integration/` runs active mutants against real Swoosh and checks
+delivery through `Swoosh.Adapters.Test`. CI runs both suites.
 
 ```
 mix deps.get
 mix test          # unit diffs + live semantic checks that a mutant actually changes behaviour
 mix check         # format + credo + dialyzer
+
+cd integration
+MIX_ENV=test mix deps.get --check-locked
+mix test          # real Swoosh integration suite
 ```
 
 ## License

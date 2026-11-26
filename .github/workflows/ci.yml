@@ -57,9 +57,8 @@ jobs:
   # Test matrix. The `~> 1.18` requirement admits every stable Elixir 1.x
   # release from 1.18 onward; each current release line gets a blocking entry
   # across OTP 25-28 compatible pairings. The development tip is informational
-  # only (continue-on-error). The Swoosh surface is exercised through test
-  # stubs, so no framework-version axis is needed here — the mutators only
-  # ever match calls by name, never call into Swoosh.
+  # only (continue-on-error). The unit suite uses Swoosh stubs. One matrix
+  # entry also runs the isolated project with a locked Swoosh version.
   test:
     name: test (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
     runs-on: ubuntu-24.04
@@ -99,3 +98,11 @@ jobs:
       - run: mix deps.get --check-locked
       - run: mix compile --warnings-as-errors
       - run: mix test
+
+      - name: Test against real Swoosh
+        if: matrix.elixir == '1.20' && matrix.otp == '28'
+        working-directory: integration
+        run: |
+          mix deps.get --check-locked
+          mix format --check-formatted
+          mix test --warnings-as-errors
