@@ -15,12 +15,14 @@ defmodule Mutare.Swoosh.DeliverTest do
   defp mail(body), do: "defmodule Notifier do\n  def send_welcome(email), do: #{body}\nend\n"
 
   test "replaces a direct deliver call with {:ok, %{}}" do
-    assert mutateds(mail("Mutare.SwooshTest.Mailer.deliver(email)")) == ["{:ok, %{}}"]
+    assert mutateds(mail("Mutare.SwooshTest.Mailer.deliver(email)")) == [
+             "(fn _ -> {:ok, %{}} end).(email)"
+           ]
   end
 
   test "replaces a direct deliver/2 call with {:ok, %{}}" do
     assert mutateds(mail("Mutare.SwooshTest.Mailer.deliver(email, retries: 0)")) ==
-             ["{:ok, %{}}"]
+             ["(fn _, _ -> {:ok, %{}} end).(email, retries: 0)"]
   end
 
   test "replaces an aliased deliver call" do
@@ -32,10 +34,10 @@ defmodule Mutare.Swoosh.DeliverTest do
     end
     """
 
-    assert mutateds(source) == ["{:ok, %{}}"]
+    assert mutateds(source) == ["(fn _ -> {:ok, %{}} end).(email)"]
   end
 
-  test "replaces a piped deliver stage over the whole pipe" do
+  test "replaces a piped deliver stage while keeping the pipe" do
     source = """
     defmodule Notifier do
       alias Mutare.SwooshTest.Mailer
@@ -47,11 +49,13 @@ defmodule Mutare.Swoosh.DeliverTest do
     end
     """
 
-    assert mutateds(source) == ["{:ok, %{}}"]
+    assert mutateds(source) == ["(fn _ -> {:ok, %{}} end).()"]
   end
 
   test "replaces deliver! with %{}" do
-    assert mutateds(mail("Mutare.SwooshTest.Mailer.deliver!(email)")) == ["%{}"]
+    assert mutateds(mail("Mutare.SwooshTest.Mailer.deliver!(email)")) == [
+             "(fn _ -> %{} end).(email)"
+           ]
   end
 
   test "replaces a piped deliver! stage with %{}" do
@@ -63,12 +67,12 @@ defmodule Mutare.Swoosh.DeliverTest do
     end
     """
 
-    assert mutateds(source) == ["%{}"]
+    assert mutateds(source) == ["(fn _ -> %{} end).()"]
   end
 
   test "accepts a list of mailers" do
     source = mail("Mutare.SwooshTest.Mailer.deliver(email)")
-    assert mutateds(source, mailer: [OtherMailer, Mailer]) == ["{:ok, %{}}"]
+    assert mutateds(source, mailer: [OtherMailer, Mailer]) == ["(fn _ -> {:ok, %{}} end).(email)"]
   end
 
   test "produces nothing without a configured mailer" do

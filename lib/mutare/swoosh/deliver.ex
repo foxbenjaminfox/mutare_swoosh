@@ -2,11 +2,10 @@ defmodule Mutare.Swoosh.Deliver do
   @moduledoc """
   :swoosh_deliver drops email delivery while keeping the success shape.
 
-  A `deliver(email)` / `deliver(email, config)` call on a configured mailer is replaced by the
-  literal `{:ok, %{}}`, and `deliver!/1,2` by `%{}` — the shapes a successful Swoosh delivery
-  returns, with nothing sent. A piped stage (`email |> Mailer.deliver()`) is replaced over the
-  whole pipe, and the email is still built. A survivor indicates that no test detected the
-  skipped delivery. Use `Swoosh.TestAssertions.assert_email_sent/1` to assert that an email was sent.
+  For calls to `deliver/1,2` and `deliver!/1,2` on configured mailers, the mutant evaluates the
+  original email and config expressions in order, including when the email is piped in. It then
+  skips the mailer call and returns `{:ok, %{}}` or `%{}`, respectively. Use
+  `Swoosh.TestAssertions.assert_email_sent/1` to assert that an email was sent.
 
   The mailer module is application-specific, so this is a configurable mutator — without the
   `mailer:` option the family produces no mutations:
@@ -93,7 +92,7 @@ defmodule Mutare.Swoosh.Deliver do
     with {mailer, fun, args, _rebuild} <- Calls.resolved_call(node),
          true <- mailer in mailers and fun in @functions,
          true <- length(args) in [1, 2] do
-      [mutation(fun)]
+      [mutation(fun, args)]
     else
       _ -> :skip
     end
@@ -105,21 +104,22 @@ defmodule Mutare.Swoosh.Deliver do
             "init/1-parsed :config, got: #{inspect(context)}"
   end
 
-  defp mutation(:deliver) do
-    Mutation.new(SAST.ok_empty_map(),
-      variant: "deliver",
+  defp mutation(fun, args) do
+    result = success(fun)
+    parameters = for _arg <- args, do: Macro.var(:_, nil)
+
+    replacement =
+      quote do
+        (fn unquote_splicing(parameters) -> unquote(result) end).(unquote_splicing(args))
+      end
+
+    Mutation.new(replacement,
+      variant: fun,
       note:
-        "deliver replaced by {:ok, %{}} - nothing is sent; no test asserts delivery " <>
-          "(Swoosh.TestAssertions.assert_email_sent)"
+        "#{fun} skipped - nothing is sent; assert delivery with Swoosh.TestAssertions.assert_email_sent"
     )
   end
 
-  defp mutation(:deliver!) do
-    Mutation.new(SAST.empty_map(),
-      variant: "deliver!",
-      note:
-        "deliver! replaced by %{} - nothing is sent; no test asserts delivery " <>
-          "(Swoosh.TestAssertions.assert_email_sent)"
-    )
-  end
+  defp success(:deliver), do: SAST.ok_empty_map()
+  defp success(:deliver!), do: SAST.empty_map()
 end

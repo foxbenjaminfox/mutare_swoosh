@@ -22,11 +22,51 @@ defmodule Mutare.Swoosh.SemanticsTest do
     assert {:ok, %{email: "mail"}} = mod.direct("mail")
     assert {:ok, %{email: "mail"}} = mod.piped("mail")
 
-    direct_id = site_id(sites, {"Mailer.deliver(email)", "{:ok, %{}}"})
-    piped_id = site_id(sites, {"email |> Mailer.deliver()", "{:ok, %{}}"})
+    direct_id = site_id(sites, {"Mailer.deliver(email)", "(fn _ -> {:ok, %{}} end).(email)"})
+    piped_id = site_id(sites, {"Mailer.deliver()", "(fn _ -> {:ok, %{}} end).()"})
 
     assert with_active_mutant(direct_id, fn -> mod.direct("mail") end) == {:ok, %{}}
     assert with_active_mutant(piped_id, fn -> mod.piped("mail") end) == {:ok, %{}}
+  end
+
+  test "active delivery mutants evaluate each original operand once in order" do
+    source = """
+    defmodule Notifier do
+      alias Mutare.SwooshTest.Mailer
+
+      def direct(build, configure), do: Mailer.deliver(build.(), configure.())
+      def piped(build, configure), do: build.() |> Mailer.deliver!(configure.())
+    end
+    """
+
+    {[mod], sites} = compile_metamutant(source, [{Deliver, mailer: Mailer}])
+    test = self()
+
+    build = fn ->
+      send(test, {:operand, :email})
+      "mail"
+    end
+
+    configure = fn ->
+      send(test, {:operand, :config})
+      [retries: 0]
+    end
+
+    for {function, variant, expected} <- [
+          {:direct, "deliver", {:ok, %{}}},
+          {:piped, "deliver!", %{}}
+        ] do
+      assert [site] = Enum.filter(sites, &(&1.variant == [variant]))
+
+      assert with_active_mutant(site.id, fn -> apply(mod, function, [build, configure]) end) ==
+               expected
+
+      assert_receive {:operand, first}
+      assert first == :email
+      assert_receive {:operand, second}
+      assert second == :config
+      refute_received {:operand, _}
+    end
   end
 
   test "an active piped header-removal mutant passes the email through unchanged" do

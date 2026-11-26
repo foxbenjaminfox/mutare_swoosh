@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the reply-to removal. It no longer renames `from:` or `reply_to:` keys in `new/1` options,
   so options whose values are not literal mailboxes get no swap.
 
+### Fixed
+
+- Delivery mutants evaluate the original email and config arguments once in source order.
+
 ## [0.2.1] - 2026-10-03
 
 ### Changed
@@ -38,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     for the `attachment/2`, `reply_to/2` and `put_provider_option/3` removals.
   - A piped `Mailer.deliver()` / `deliver!()` stage is replaced over the whole pipe:
     `email |> Mailer.deliver()` → `{:ok, %{}}` (was
-    `Elixir.Kernel.then(fn _ -> {:ok, %{}} end)`). The email is still built.
+    `Elixir.Kernel.then(fn _ -> {:ok, %{}} end)`).
   - `# mutare:ignore` directives and `--line` selections on a stage keep working as before.
 
 ## [0.1.1] - 2026-09-07
